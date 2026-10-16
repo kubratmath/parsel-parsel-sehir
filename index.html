@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Parsel Parsel Şehir: Çevre Çıkmazı</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+:root{
+  --navy:#1E3A5F; --teal:#26A69A; --amber:#FB8C00; --paper:#FFFFFF;
+  --ink:#14213D; --ok:#2E9E5B; --bad:#D64545;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background-color:#EEF3F8;
+  background-image:
+    linear-gradient(rgba(30,58,95,.11) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(30,58,95,.11) 1px, transparent 1px);
+  background-size:25px 25px;
+  color:var(--ink);
+  font-family:"Segoe UI",system-ui,-apple-system,Roboto,"Helvetica Neue",Arial,sans-serif;
+  min-height:100vh;
+  line-height:1.45;
+}
+button{font-family:inherit;cursor:pointer}
+h1,h2,h3,p,ul{margin:0;padding:0}
+ul{list-style:none}
+
+/* HUD */
+.hud{background:var(--navy);color:#fff;border-radius:16px;padding:10px 16px 12px;border:3px solid #14284a;box-shadow:0 8px 20px rgba(20,33,61,.25)}
+.hud-row{display:flex;flex-wrap:wrap;gap:10px;align-items:stretch;justify-content:space-between}
+.hud-brand{font-weight:800;font-size:1.15rem;display:flex;align-items:center;gap:10px}
+.hud-brand small{display:block;font-weight:600;font-size:.72rem;color:#B9D3EE;letter-spacing:.04em}
+.hud-stats{display:flex;flex-wrap:wrap;gap:8px}
+.hud-item{background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.2);border-radius:12px;padding:5px 12px;min-width:88px;text-align:center}
+.hud-item span{display:block;font-size:.66rem;text-transform:uppercase;letter-spacing:.06em;color:#B9D3EE}
+.hud-item b{font-size:1.3rem;font-variant-numeric:tabular-nums}
+.hud-item.target b{color:var(--amber)}
+.hud-item.danger{background:rgba(214,69,69,.45);border-color:#ffb3b3;animation:blink 1s infinite}
+.bump{animation:bump .4s ease}
+.progress-wrap{margin-top:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.progress{flex:1;min-width:160px;height:16px;background:rgba(255,255,255,.18);border-radius:999px;overflow:hidden}
+.progress>i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--teal),var(--ok));border-radius:999px;transition:width .8s cubic-bezier(.2,.8,.2,1)}
+#progLabel{font-weight:700;font-size:.9rem;min-width:200px}
+
+/* Paneller */
+.paper{background:var(--paper);border:1px solid rgba(30,58,95,.14);border-top:5px solid var(--navy);border-radius:14px;padding:16px;box-shadow:0 8px 18px rgba(20,33,61,.12),0 1px 3px rgba(20,33,61,.08)}
+.paper h2{color:var(--navy);font-size:1.08rem;font-weight:800;margin-bottom:10px;display:flex;align-items:center;gap:8px;justify-content:space-between}
+.chip{display:inline-block;background:var(--teal);color:var(--ink);font-size:.74rem;font-weight:800;border-radius:999px;padding:2px 10px}
+.spec{font-size:.92rem;background:#F4F8FC;border-left:4px solid var(--amber);border-radius:8px;padding:9px 11px}
+.spec b{color:var(--navy)}
+.ctl{margin-top:14px}
+.ctl label{display:block;font-weight:700;color:var(--navy);font-size:.9rem;margin-bottom:6px}
+.stepper{display:flex;align-items:center;gap:8px}
+.stepper button{width:42px;height:42px;border-radius:10px;border:2px solid var(--navy);background:#fff;color:var(--navy);font-size:1.3rem;font-weight:800;line-height:1}
+.stepper button:hover{background:var(--navy);color:#fff}
+.stepper input[type=number]{flex:1;min-width:0;height:42px;border:2px solid var(--navy);border-radius:10px;text-align:center;font-size:1.25rem;font-weight:800;color:var(--ink);background:#fff;font-family:inherit}
+.stepper input[type=number]:focus{outline:3px solid rgba(38,166,154,.5)}
+input[type=range]{width:100%;margin-top:8px;accent-color:var(--teal);height:26px}
+
+.btn{border:0;border-radius:12px;font-weight:800;padding:12px 16px;font-size:1rem;transition:transform .12s,box-shadow .2s,opacity .2s;box-shadow:0 3px 0 rgba(20,33,61,.25)}
+.btn:active:not(:disabled){transform:translateY(2px);box-shadow:0 1px 0 rgba(20,33,61,.25)}
+.btn-primary{background:var(--navy);color:#fff}
+.btn-secondary{background:var(--teal);color:var(--ink)}
+.btn-accent{background:var(--amber);color:var(--ink)}
+.btn-outline{background:#fff;color:var(--navy);border:2px solid var(--navy);box-shadow:none}
+.btn:disabled{opacity:.5;cursor:not-allowed;filter:grayscale(.5)}
+.btn-block{width:100%;margin-top:16px}
+.btn.pulse:not(:disabled){animation:pulse 1.2s infinite}
+
+#feedback{margin-top:12px;border-radius:10px;padding:9px 12px;font-size:.9rem;font-weight:600;min-height:44px;background:#F4F8FC;border:2px dashed rgba(30,58,95,.25)}
+#feedback.ok{background:#E6F5EC;border:2px solid var(--ok);border-style:solid;color:#14532d}
+#feedback.bad{background:#FBE9E9;border:2px solid var(--bad);border-style:solid;color:#7f1d1d}
+#feedback.info{background:#FFF3E0;border:2px solid var(--amber);border-style:solid;color:#7a3d00}
+#feedback.anim{animation:slideIn .35s ease}
+.note{margin-top:12px;background:#E8F6F4;border:2px solid var(--teal);border-radius:10px;padding:9px 12px;font-size:.88rem;display:none}
+.note.show{display:block;animation:slideIn .4s ease}
+.note b{color:var(--navy)}
+
+/* Sahne */
+#stage{background:#fff;border:3px solid rgba(30,58,95,.25);border-radius:14px;padding:6px;transition:box-shadow .25s,border-color .25s}
+#stage.ring-ok{border-color:var(--ok);box-shadow:0 0 0 4px rgba(46,158,91,.35),0 0 28px rgba(46,158,91,.6)}
+#stage.ring-warn{border-color:var(--amber);box-shadow:0 0 0 4px rgba(251,140,0,.3),0 0 20px rgba(251,140,0,.45)}
+#stage.ring-bad{border-color:var(--bad);box-shadow:0 0 0 4px rgba(214,69,69,.32),0 0 22px rgba(214,69,69,.5)}
+#stage.shake{animation:shake .45s}
+#svg{display:block;width:100%;height:auto}
+.readouts{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:12px}
+.ro{background:#F4F8FC;border-radius:10px;padding:8px 12px;border:1px solid rgba(30,58,95,.15)}
+.ro span{display:block;font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:#4a5b7a;font-weight:700}
+.ro b{font-size:1.05rem;color:var(--navy);font-variant-numeric:tabular-nums}
+#roStatus b{font-size:.95rem}
+#roStatus.ok b{color:var(--ok)} #roStatus.warn b{color:#b36200} #roStatus.bad b{color:var(--bad)}
+
+/* Liste */
+#list{display:flex;flex-direction:column;gap:10px;min-height:60px}
+.empty{color:#5a6b87;font-size:.9rem;text-align:center;padding:18px 8px;border:2px dashed rgba(30,58,95,.25);border-radius:12px}
+.pcard{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid rgba(30,58,95,.15);border-left:6px solid var(--ok);border-radius:12px;padding:8px 10px;box-shadow:0 3px 8px rgba(20,33,61,.08);overflow:hidden}
+.pcard.enter{animation:grow .55s cubic-bezier(.2,.8,.2,1) both}
+.pcard.min{border-left-color:var(--teal);background:#F0FAF9}
+.pcard.max{border-left-color:var(--amber);background:#FFF8EC}
+.mini{flex:none;width:48px;height:48px;background:#F4F8FC;border-radius:8px}
+.pinfo{flex:1;min-width:0}
+.pt{font-weight:800;color:var(--navy)}
+.ps{font-size:.82rem;color:#3b4a67}
+.badges{display:flex;flex-wrap:wrap;gap:4px;margin-top:3px}
+.badge{font-size:.68rem;font-weight:800;border-radius:999px;padding:2px 8px;animation:popIn .5s ease both}
+.badge.min{background:var(--teal);color:var(--ink)}
+.badge.max{background:var(--amber);color:var(--ink)}
+.pnum{font-size:.75rem;font-weight:800;color:#fff;background:var(--navy);border-radius:8px;padding:2px 7px}
+.legend{margin-top:12px;font-size:.8rem;color:#4a5b7a}
+
+/* Alt bar */
+.bar{display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:center;background:var(--paper);border:1px solid rgba(30,58,95,.14);border-bottom:5px solid var(--navy);border-radius:14px;padding:12px 16px;box-shadow:0 8px 18px rgba(20,33,61,.12)}
+.bar .left{display:flex;gap:10px;flex-wrap:wrap}
+
+/* Modal */
+#overlay{position:fixed;inset:0;background:rgba(20,33,61,.6);backdrop-filter:blur(3px);display:none;align-items:center;justify-content:center;padding:14px;z-index:50}
+#overlay.show{display:flex}
+.modal{background:#fff;border-radius:20px;max-width:560px;width:100%;max-height:92vh;overflow:auto;padding:22px;border-top:8px solid var(--navy);box-shadow:0 20px 50px rgba(0,0,0,.4);animation:popIn .4s ease}
+.modal.win{border-top-color:var(--ok)} .modal.lose{border-top-color:var(--bad)} .modal.crisis{border-top-color:var(--amber)}
+.modal h3{font-size:1.4rem;font-weight:900;color:var(--navy);margin-bottom:8px}
+.modal p{margin-bottom:10px}
+.modal .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+.modal .row .btn{flex:1;min-width:140px}
+.opt{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:#fff;border:2px solid var(--navy);border-radius:12px;padding:10px 12px;margin-bottom:8px;font-size:1rem;font-weight:700;color:var(--ink)}
+.opt:hover:not(:disabled){background:#EEF3F8}
+.opt.right{background:#E6F5EC;border-color:var(--ok)}
+.opt.wrong{background:#FBE9E9;border-color:var(--bad);opacity:.8}
+.opt .l{flex:none;width:28px;height:28px;border-radius:50%;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.85rem}
+.stars{font-size:2rem;letter-spacing:4px}
+.stat{display:flex;justify-content:space-between;border-bottom:1px dashed rgba(30,58,95,.25);padding:4px 0}
+.qmsg{min-height:22px;font-weight:700;margin-top:4px}
+
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(251,140,0,.8),0 3px 0 rgba(20,33,61,.25)}70%{box-shadow:0 0 0 16px rgba(251,140,0,0),0 3px 0 rgba(20,33,61,.25)}100%{box-shadow:0 0 0 0 rgba(251,140,0,0),0 3px 0 rgba(20,33,61,.25)}}
+@keyframes blink{50%{background:rgba(214,69,69,.15)}}
+@keyframes bump{40%{transform:scale(1.18)}}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-7px)}40%{transform:translateX(7px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
+@keyframes slideIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes grow{from{opacity:0;transform:translateX(30px) scale(.9);max-height:0;padding-top:0;padding-bottom:0}to{opacity:1;transform:none;max-height:120px}}
+@keyframes popIn{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+</style>
+</head>
+<body>
+<div class="mx-auto w-full max-w-[1500px] p-3 md:p-4 flex flex-col gap-3 md:gap-4">
+
+  <!-- HUD -->
+  <header class="hud" role="banner">
+    <div class="hud-row">
+      <div class="hud-brand">
+        <span style="font-size:1.8rem">🏙️</span>
+        <div>Parsel Parsel Şehir<small>ÇEVRE ÇIKMAZI • MAT.6.1.1 Çarpanlar ve Katlar</small></div>
+      </div>
+      <div class="hud-stats">
+        <div class="hud-item"><span>Arsa No</span><b id="hudPlot">1/3</b></div>
+        <div class="hud-item target"><span>Hedef Alan</span><b id="hudTarget">24 br²</b></div>
+        <div class="hud-item" id="hudTimeBox"><span>Kalan Süre</span><b id="hudTime">180 sn</b></div>
+        <div class="hud-item"><span>Çarpan Çifti</span><b id="hudPairs">0/4</b></div>
+        <div class="hud-item"><span>Şehir Puanı</span><b id="hudScore">0</b></div>
+      </div>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progBar"><i id="progFill"></i></div>
+      <div id="progLabel">0/4 Çift Keşfedildi - %0</div>
+    </div>
+  </header>
+
+  <!-- Ana alan -->
+  <main class="grid grid-cols-1 lg:grid-cols-[310px_minmax(0,1fr)_310px] gap-3 md:gap-4">
+
+    <!-- Sol -->
+    <section class="paper" aria-label="İhale şartnamesi ve kontroller">
+      <h2>📜 İhale Şartnamesi</h2>
+      <div class="spec" id="specText"></div>
+
+      <div class="ctl">
+        <label for="enNum">📏 En (yatay kenar)</label>
+        <div class="stepper">
+          <button type="button" data-act="step" data-side="en" data-d="-1" aria-label="En azalt">−</button>
+          <input type="number" id="enNum" min="1" max="24" value="1" inputmode="numeric">
+          <button type="button" data-act="step" data-side="en" data-d="1" aria-label="En arttır">+</button>
+        </div>
+        <input type="range" id="enRange" min="1" max="24" value="1" aria-label="En kaydırıcısı">
+      </div>
+      <div class="ctl">
+        <label for="boyNum">📐 Boy (dikey kenar)</label>
+        <div class="stepper">
+          <button type="button" data-act="step" data-side="boy" data-d="-1" aria-label="Boy azalt">−</button>
+          <input type="number" id="boyNum" min="1" max="24" value="1" inputmode="numeric">
+          <button type="button" data-act="step" data-side="boy" data-d="1" aria-label="Boy arttır">+</button>
+        </div>
+        <input type="range" id="boyRange" min="1" max="24" value="1" aria-label="Boy kaydırıcısı">
+      </div>
+
+      <button type="button" class="btn btn-secondary btn-block" id="btnTest" data-act="test">🏗️ Parseli Test Et &amp; Yerleştir</button>
+      <div id="feedback" role="status" aria-live="polite">Kenarları ayarla ve parseli test et!</div>
+      <div class="note" id="note"></div>
+    </section>
+
+    <!-- Orta -->
+    <section class="paper" aria-label="Şantiye ızgarası">
+      <h2><span>🏗️ İnteraktif Şantiye Izgarası</span><span class="chip" id="chipPlot">Arsa 1</span></h2>
+      <div id="stage"><svg id="svg" viewBox="0 0 640 470" role="img" aria-label="En ve boy değerine göre değişen alan modeli"></svg></div>
+      <div class="readouts">
+        <div class="ro"><span>Alan (En × Boy)</span><b id="rdArea">—</b></div>
+        <div class="ro"><span>Çevre</span><b id="rdPerim">—</b></div>
+        <div class="ro" id="roStatus"><span>Durum</span><b id="rdStatus">—</b></div>
+      </div>
+    </section>
+
+    <!-- Sağ -->
+    <section class="paper" aria-label="Keşfedilen parseller">
+      <h2><span>🗺️ Keşfedilen Parseller</span><span class="chip" id="listCount">0</span></h2>
+      <ul id="list"></ul>
+      <p class="legend">Çevre = 2 × (En + Boy). Tüm parseller bulununca liste çevreye göre sıralanır.</p>
+    </section>
+  </main>
+
+  <!-- Alt bar -->
+  <footer class="bar">
+    <div class="left">
+      <button type="button" class="btn btn-secondary" data-act="hint">💡 İpucu / Şehir Mühendisi Notu</button>
+      <button type="button" class="btn btn-outline" data-act="reset">↺ Sıfırla</button>
+    </div>
+    <button type="button" class="btn btn-primary" id="btnFinish" data-act="finish" disabled title="Önce tüm çarpan çiftlerini bul">🔒 Turu Bitir &amp; Ruhsat Al</button>
+  </footer>
+</div>
+
+<div id="overlay" role="dialog" aria-modal="true"><div class="modal" id="modalBody"></div></div>
+
+<script>
+(function(){
+'use strict';
+var $ = function(id){ return document.getElementById(id); };
+
+/* ---------- Veri ---------- */
+var LEVELS = [
+  { target:24, time:180, exit:[
+    { q:'Alanı 20 br² olan dikdörtgen arsanın kenarları tam sayıdır. Çevresi en az kaç br olur?', opts:['18','20','24','42'], ans:0,
+      exp:'20 = 4 × 5 (kenarlar birbirine en yakın). Çevre = 2 × (4 + 5) = 18 br. 2×10 → 24 br, 1×20 → 42 br.' },
+    { q:'Aşağıdakilerden hangisi 24\'ün çarpanı değildir?', opts:['6','8','9','12'], ans:2,
+      exp:'24 ÷ 9 tam bölünmez. Bu yüzden 9, 24\'ün çarpanı değildir.' }
+  ]},
+  { target:36, time:180, exit:[
+    { q:'Alanı 12 br² olan arsanın kenarları tam sayıysa çevresi en çok kaç br olabilir?', opts:['14','16','26','24'], ans:2,
+      exp:'1×12 → 26 br (en büyük), 2×6 → 16 br, 3×4 → 14 br.' },
+    { q:'Alanı 16 br² olan kare biçimli arsanın çevresi kaç br\'dir?', opts:['8','16','32','64'], ans:1,
+      exp:'Kare: 4 × 4 = 16 br². Çevre = 4 × 4 = 16 br.' }
+  ]},
+  { target:30, time:180, exit:[
+    { q:'Alanı 18 br² olan arsanın çevresi en az kaç br olur?', opts:['18','20','22','38'], ans:0,
+      exp:'3 × 6 = 18 br² ve çevre = 2 × (3 + 6) = 18 br. 2×9 → 22 br, 1×18 → 38 br.' },
+    { q:'Aşağıdakilerden hangisi 30\'un çarpanı değildir?', opts:['5','6','10','12'], ans:3,
+      exp:'30 ÷ 12 tam bölünmez. 12, 30\'un çarpanı değildir.' }
+  ]}
+];
+LEVELS.forEach(function(l){
+  l.pairs = [];
+  for (var a = 1; a * a <= l.target; a++) if (l.target % a === 0) l.pairs.push([a, l.target / a]);
+  l.max = Math.min(l.target, 40);
+});
+
+function keyOf(a,b){ return Math.min(a,b) + 'x' + Math.max(a,b); }
+function clamp(v,lo,hi){ return Math.max(lo, Math.min(hi, v)); }
+function L(){ return LEVELS[S.lv]; }
+
+/* ---------- Durum ---------- */
+var S = {
+  lv:0, score:0, lvStartScore:0, found:[], left:180, running:false, over:false,
+  allFound:false, sorted:false, budgetDone:false, hints:0, hintStep:0, wrong:0,
+  en:1, boy:1, dispEn:1, dispBoy:1, fx:null, modalOpen:false, token:0, flashBad:false
+};
+
+/* ---------- Yardımcılar ---------- */
+function setText(id, t){ $(id).textContent = t; }
+function bumpEl(el){ el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
+function fb(type, html){
+  var el = $('feedback');
+  el.className = type + ' anim';
+  el.innerHTML = html;
+  void el.offsetWidth;
+}
+function fmtTime(){ return Math.ceil(S.left) + ' sn'; }
+
+/* ---------- HUD ---------- */
+function updateHud(){
+  var total = L().pairs.length, n = S.found.length;
+  var pct = Math.round(n / total * 100);
+  setText('hudPlot', (S.lv + 1) + '/' + LEVELS.length);
+  setText('hudTarget', L().target + ' br²');
+  setText('hudPairs', n + '/' + total);
+  var sc = $('hudScore');
+  if (sc.textContent !== String(S.score)) { sc.textContent = S.score; bumpEl(sc); }
+  $('progFill').style.width = pct + '%';
+  $('progBar').setAttribute('aria-valuenow', pct);
+  setText('progLabel', n + '/' + total + ' Çift Keşfedildi - %' + pct);
+  setText('chipPlot', 'Arsa ' + (S.lv + 1));
+  updateTimer();
+  updateFinish();
+}
+function updateTimer(){
+  setText('hudTime', fmtTime());
+  $('hudTimeBox').classList.toggle('danger', S.left <= 30 && !S.allFound && S.running);
+}
+function updateFinish(){
+  var b = $('btnFinish');
+  b.disabled = !S.allFound;
+  b.classList.toggle('pulse', S.allFound);
+  b.innerHTML = S.allFound ? '🏛️ Turu Bitir &amp; Ruhsat Al' : '🔒 Turu Bitir &amp; Ruhsat Al';
+  b.title = S.allFound ? 'Ruhsat için hazırsın!' : 'Önce tüm çarpan çiftlerini bul';
+}
+
+/* ---------- Canlı alan ---------- */
+function updateLive(){
+  var en = S.en, boy = S.boy, A = en * boy, P = 2 * (en + boy), t = L().target;
+  var key = keyOf(en, boy);
+  var dup = S.found.some(function(f){ return f.key === key; });
+
+  if (document.activeElement !== $('enNum')) $('enNum').value = en;
+  if (document.activeElement !== $('boyNum')) $('boyNum').value = boy;
+  $('enRange').value = en; $('boyRange').value = boy;
+
+  setText('rdArea', en + ' × ' + boy + ' = ' + A + ' br²');
+  setText('rdPerim', '2 × (' + en + ' + ' + boy + ') = ' + P + ' br');
+
+  var st = $('roStatus'), msg, cls;
+  if (dup) { msg = 'Bu parsel zaten haritada!'; cls = 'warn'; }
+  else if (A === t) { msg = '✔ Alan hedefe eşit!'; cls = 'ok'; }
+  else if (A < t) { msg = 'Hedefin ' + (t - A) + ' br² altında'; cls = 'warn'; }
+  else { msg = 'Hedefin ' + (A - t) + ' br² üstünde'; cls = 'bad'; }
+  st.className = 'ro ' + cls;
+  setText('rdStatus', msg);
+
+  var stage = $('stage');
+  stage.classList.remove('ring-ok','ring-warn','ring-bad');
+  if (S.flashBad) stage.classList.add('ring-bad');
+  else if (dup) stage.classList.add('ring-warn');
+  else if (A === t) stage.classList.add('ring-ok');
+  else if (A > t) stage.classList.add('ring-bad');
+  else stage.classList.add('ring-warn');
+
+  var btn = $('btnTest');
+  var locked = dup || S.over || S.allFound || !S.running;
+  btn.disabled = locked;
+  btn.innerHTML = dup ? '⚠️ Bu parsel zaten haritada!' : (S.allFound ? '✅ Tüm parseller bulundu' : '🏗️ Parseli Test Et &amp; Yerleştir');
+
+  requestRender();
+}
+
+/* ---------- SVG çizim ---------- */
+var BASE = 410, X0 = 64, AREA_H = 350, AREA_W = 540;
+function unit(){ return AREA_H / L().max; }
+function easeOut(x){ return 1 - Math.pow(1 - x, 3); }
+
+function render(){
+  var un = unit(), w = S.dispEn * un, h = S.dispBoy * un, x = X0, y = BASE - h;
+  var A = S.en * S.boy, t = L().target;
+  var col = A === t ? '#2E9E5B' : (A > t ? '#D64545' : '#FB8C00');
+  var s = '';
+  s += '<defs>' +
+    '<pattern id="pbg" width="' + un + '" height="' + un + '" patternUnits="userSpaceOnUse" x="' + X0 + '" y="' + BASE + '"><path d="M ' + un + ' 0 H 0 V ' + un + '" fill="none" stroke="#1E3A5F" stroke-opacity=".12" stroke-width="1"/></pattern>' +
+    '<pattern id="pcell" width="' + un + '" height="' + un + '" patternUnits="userSpaceOnUse" x="' + X0 + '" y="' + BASE + '"><path d="M ' + un + ' 0 H 0 V ' + un + '" fill="none" stroke="' + col + '" stroke-opacity=".55" stroke-width="1"/></pattern>' +
+    '<pattern id="pwin" width="' + (un * 1) + '" height="' + (un * 1) + '" patternUnits="userSpaceOnUse" x="' + X0 + '" y="' + BASE + '"><rect x="' + (un * .25) + '" y="' + (un * .25) + '" width="' + (un * .5) + '" height="' + (un * .5) + '" fill="#fff" fill-opacity=".85" rx="1"/></pattern>' +
+    '</defs>';
+  // Şantiye zemini
+  s += '<rect x="' + X0 + '" y="' + (BASE - AREA_H) + '" width="' + AREA_W + '" height="' + AREA_H + '" fill="url(#pbg)" stroke="#1E3A5F" stroke-opacity=".18"/>';
+  s += '<rect x="' + (X0 - 10) + '" y="' + BASE + '" width="' + (AREA_W + 20) + '" height="10" fill="#1E3A5F" fill-opacity=".22" rx="3"/>';
+  // Hedef rozeti
+  s += '<g><rect x="440" y="8" width="190" height="28" rx="14" fill="#FB8C00"/><text x="535" y="27" text-anchor="middle" font-size="15" font-weight="800" fill="#14213D">🎯 Hedef: ' + t + ' br²</text></g>';
+  // Dikdörtgen
+  s += '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" fill="' + col + '" fill-opacity=".2" stroke="' + col + '" stroke-width="3" rx="2"/>';
+  s += '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" fill="url(#pcell)"/>';
+  // Bina animasyonu
+  if (S.fx) {
+    var p = (performance.now() - S.fx.t0) / 1400;
+    if (p < 1) {
+      var fw = S.fx.en * un, fh = S.fx.boy * un, rise = easeOut(Math.min(p / 0.5, 1)) * fh;
+      var op = p > 0.7 ? (1 - (p - 0.7) / 0.3) : 1;
+      s += '<g opacity="' + op.toFixed(2) + '">' +
+        '<rect x="' + X0 + '" y="' + (BASE - rise) + '" width="' + fw + '" height="' + rise + '" fill="#2E9E5B"/>' +
+        '<rect x="' + X0 + '" y="' + (BASE - rise) + '" width="' + fw + '" height="' + rise + '" fill="url(#pwin)"/>' +
+        '<polygon points="' + (X0 - 4) + ',' + (BASE - rise) + ' ' + (X0 + fw / 2) + ',' + (BASE - rise - Math.min(26, fw / 3)) + ' ' + (X0 + fw + 4) + ',' + (BASE - rise) + '" fill="#1E3A5F"/>' +
+        '</g>';
+    }
+  }
+  // Ölçü etiketleri
+  var halo = ' paint-order="stroke" stroke="#fff" stroke-width="4" stroke-linejoin="round"';
+  var by = BASE + 24;
+  s += '<g stroke="#1E3A5F" stroke-width="2"><line x1="' + x + '" y1="' + by + '" x2="' + (x + w) + '" y2="' + by + '"/><line x1="' + x + '" y1="' + (by - 6) + '" x2="' + x + '" y2="' + (by + 6) + '"/><line x1="' + (x + w) + '" y1="' + (by - 6) + '" x2="' + (x + w) + '" y2="' + (by + 6) + '"/></g>';
+  s += '<text x="' + (x + w / 2) + '" y="' + (by + 22) + '" text-anchor="middle" font-size="17" font-weight="800" fill="#1E3A5F">En = ' + S.en + ' br</text>';
+  var lx = X0 - 22;
+  s += '<g stroke="#1E3A5F" stroke-width="2"><line x1="' + lx + '" y1="' + y + '" x2="' + lx + '" y2="' + BASE + '"/><line x1="' + (lx - 6) + '" y1="' + y + '" x2="' + (lx + 6) + '" y2="' + y + '"/><line x1="' + (lx - 6) + '" y1="' + BASE + '" x2="' + (lx + 6) + '" y2="' + BASE + '"/></g>';
+  s += '<text transform="translate(' + (lx - 9) + ',' + (y + h / 2) + ') rotate(-90)" text-anchor="middle" font-size="17" font-weight="800" fill="#1E3A5F">Boy = ' + S.boy + ' br</text>';
+  // Alan etiketi
+  s += '<text x="' + (x + Math.max(w / 2, 0)) + '" y="' + (y - 10) + '" text-anchor="' + (w < 110 ? 'start' : 'middle') + '" font-size="18" font-weight="900" fill="' + col + '"' + halo + '>' + S.en + ' × ' + S.boy + ' = ' + A + ' br²</text>';
+  $('svg').innerHTML = s;
+}
+
+var raf = 0;
+function loop(){
+  raf = 0;
+  S.dispEn += (S.en - S.dispEn) * 0.25;
+  S.dispBoy += (S.boy - S.dispBoy) * 0.25;
+  if (Math.abs(S.en - S.dispEn) < 0.01) S.dispEn = S.en;
+  if (Math.abs(S.boy - S.dispBoy) < 0.01) S.dispBoy = S.boy;
+  render();
+  var fxActive = S.fx && (performance.now() - S.fx.t0 < 1400);
+  if (S.dispEn !== S.en || S.dispBoy !== S.boy || fxActive) raf = requestAnimationFrame(loop);
+  else if (S.fx) { S.fx = null; render(); }
+}
+function requestRender(){ if (!raf) raf = requestAnimationFrame(loop); }
+
+/* ---------- Parsel listesi ---------- */
+function miniSvg(a, b){
+  var sc = 38 / Math.max(a, b), w = a * sc, h = b * sc;
+  return '<svg class="mini" viewBox="0 0 48 48" aria-hidden="true"><rect x="' + (24 - w / 2) + '" y="' + (24 - h / 2) + '" width="' + w + '" height="' + h + '" fill="#2E9E5B" fill-opacity=".3" stroke="#2E9E5B" stroke-width="2"/></svg>';
+}
+function renderList(opts){
+  opts = opts || {};
+  var list = $('list'), old = {};
+  list.querySelectorAll('.pcard').forEach(function(el){ old[el.dataset.key] = el.getBoundingClientRect().top; });
+  var items = S.found.slice();
+  if (S.sorted) items.sort(function(x, y){ return x.P - y.P; });
+  setText('listCount', S.found.length + '/' + L().pairs.length);
+  if (!items.length) { list.innerHTML = '<li class="empty">Henüz parsel yok.<br>İlk parselini test et! 🏗️</li>'; return; }
+  var html = '';
+  items.forEach(function(f, i){
+    var cls = 'pcard', badges = '';
+    if (opts.newKey === f.key) cls += ' enter';
+    if (S.sorted && i === 0) { cls += ' min'; badges += '<span class="badge min">💰 En Ucuz Duvar (Min Çevre)</span>'; }
+    if (S.sorted && i === items.length - 1) { cls += ' max'; badges += '<span class="badge max">🏙️ En Geniş Cephe (Max Çevre)</span>'; }
+    html += '<li class="' + cls + '" data-key="' + f.key + '">' + miniSvg(f.a, f.b) +
+      '<div class="pinfo"><div class="pt">' + f.a + ' × ' + f.b + ' = ' + L().target + ' br²</div>' +
+      '<div class="ps">Çevre = 2×(' + f.a + '+' + f.b + ') = ' + f.P + ' br</div>' +
+      (badges ? '<div class="badges">' + badges + '</div>' : '') + '</div>' +
+      '<div class="pnum">#' + (i + 1) + '</div></li>';
+  });
+  list.innerHTML = html;
+  if (opts.flip && list.animate) {
+    list.querySelectorAll('.pcard').forEach(function(el){
+      var o = old[el.dataset.key];
+      if (o === undefined) return;
+      var dy = o - el.getBoundingClientRect().top;
+      if (Math.abs(dy) > 1) el.animate([{ transform: 'translateY(' + dy + 'px)' }, { transform: 'none' }], { duration: 700, easing: 'cubic-bezier(.2,.8,.2,1)' });
+    });
+  }
+}
+
+/* ---------- Modal ---------- */
+function showModal(html, cls){
+  var m = $('modalBody');
+  m.className = 'modal ' + (cls || '');
+  m.innerHTML = html;
+  $('overlay').classList.add('show');
+  S.modalOpen = true;
+}
+function hideModal(){ $('overlay').classList.remove('show'); S.modalOpen = false; }
+
+function introModal(){
+  showModal('<h3>🏙️ Parsel Parsel Şehir: Çevre Çıkmazı</h3>' +
+    '<p>Sen şehrin yeni <b>Şehir Mühendisisin</b>! Belediye, her arsayı tam olarak <b>hedef alana</b> eşit dikdörtgen parsellere ayırmak istiyor.</p>' +
+    '<p>📏 <b>En</b> ve <b>Boy</b> değerlerini seç; <b>En × Boy = Alan</b> olduğunda bina yükselir.<br>' +
+    '🔁 4×6 ile 6×4 aynı parseldir.<br>⏱️ Her arsa için <b>180 saniyen</b> var.<br>💸 Tüm parselleri bulunca <b>Belediye Bütçe Krizi</b> seni bekliyor!</p>' +
+    '<div class="row"><button class="btn btn-primary" data-act="start">🚀 İhaleye Başla</button></div>');
+}
+
+/* ---------- Oyun akışı ---------- */
+function startPlot(i, isReset){
+  S.token++;
+  S.lv = i;
+  if (!isReset) S.lvStartScore = S.score; else S.score = S.lvStartScore;
+  S.found = []; S.left = L().time; S.over = false; S.allFound = false; S.sorted = false;
+  S.budgetDone = false; S.hints = 0; S.hintStep = 0; S.wrong = 0; S.fx = null; S.flashBad = false;
+  S.en = 1; S.boy = 1; S.dispEn = 1; S.dispBoy = 1;
+  var mx = L().max;
+  ['enNum','boyNum','enRange','boyRange'].forEach(function(id){ $(id).min = 1; $(id).max = mx; });
+  $('specText').innerHTML = 'Belediye <b>' + L().target + ' br²</b> alanlı bu arsaya dikdörtgen parseller istiyor. Alanı tam <b>' + L().target + ' br²</b> yapan <b>tüm</b> En × Boy çiftlerini bul. <b>' + L().pairs.length + '</b> farklı parsel var!';
+  var n = $('note'); n.className = 'note'; n.innerHTML = '';
+  fb('', 'Kenarları ayarla ve parseli test et!');
+  S.running = !S.modalOpen;
+  hideModal();
+  S.running = true;
+  renderList();
+  updateHud();
+  updateLive();
+}
+
+var lastTick = performance.now();
+setInterval(function(){
+  var now = performance.now(), dt = (now - lastTick) / 1000;
+  lastTick = now;
+  if (S.running && !S.over && !S.allFound) {
+    S.left = Math.max(0, S.left - dt);
+    updateTimer();
+    if (S.left <= 0) gameOver();
+  }
+}, 200);
+
+function setSide(side, v){
+  if (S.over || S.allFound) { /* hâlâ görsel olarak oynatılabilir ama test kilitli */ }
+  v = clamp(parseInt(v, 10), 1, L().max);
+  if (isNaN(v)) return;
+  S[side] = v;
+  updateLive();
+}
+
+function testParcel(){
+  if (!S.running || S.over || S.allFound || S.modalOpen) return;
+  var en = S.en, boy = S.boy, t = L().target, A = en * boy, key = keyOf(en, boy);
+  if (S.found.some(function(f){ return f.key === key; })) { fb('info', '⚠️ Bu parsel zaten haritada!'); return; }
+  if (A === t) {
+    S.found.push({ a: en, b: boy, key: key, P: 2 * (en + boy) });
+    S.score += 100;
+    S.fx = { en: en, boy: boy, t0: performance.now() };
+    var total = L().pairs.length;
+    if (S.found.length === total) {
+      S.allFound = true; S.sorted = false;
+      var bonus = Math.round(S.left) * 2;
+      S.score += bonus;
+      fb('ok', '🎉 <b>Tüm parseller bulundu!</b> ' + en + ' × ' + boy + ' = ' + t + ' br². (+100 puan, +' + bonus + ' süre bonusu)');
+      renderList({ newKey: key });
+      updateHud(); updateLive();
+      var tk = S.token;
+      setTimeout(function(){
+        if (tk !== S.token) return;
+        S.sorted = true;
+        renderList({ flip: true });
+      }, 1000);
+      setTimeout(function(){
+        if (tk !== S.token || S.modalOpen) return;
+        openBudget();
+      }, 2600);
+      return;
+    }
+    fb('ok', '🏗️ Harika! <b>' + en + ' × ' + boy + ' = ' + t + ' br²</b> — bina yükseldi! (+100 puan)');
+    renderList({ newKey: key });
+    updateHud(); updateLive();
+  } else {
+    S.wrong++;
+    S.score = Math.max(0, S.score - 10);
+    var why = A > t ? A + ' br² çıktı; hedefin ' + (A - t) + ' br² fazlası.' : A + ' br² çıktı; hedefin ' + (t - A) + ' br² eksiği.';
+    var tip;
+    if (t % en !== 0) tip = en + ', ' + t + '\'ın çarpanı değil (' + t + ' ÷ ' + en + ' tam bölünmez).';
+    else if (t % boy !== 0) tip = boy + ', ' + t + '\'ın çarpanı değil (' + t + ' ÷ ' + boy + ' tam bölünmez).';
+    else tip = 'İkisi de ' + t + '\'ın çarpanı ama eşleşmiyor. Eşini bulmak için ' + t + ' ÷ ' + en + ' = ' + (t / en) + ' işlemine bak.';
+    fb('bad', '❌ ' + en + ' × ' + boy + ' = ' + A + '. ' + why + '<br>' + tip + ' (−10 puan)');
+    S.flashBad = true;
+    var st = $('stage'); st.classList.remove('shake'); void st.offsetWidth; st.classList.add('shake');
+    updateHud(); updateLive();
+    var tk2 = S.token;
+    setTimeout(function(){ if (tk2 !== S.token) return; S.flashBad = false; $('stage').classList.remove('shake'); updateLive(); }, 800);
+  }
+}
+
+function hint(){
+  if (!S.running || S.over || S.allFound || S.modalOpen) return;
+  var t = L().target, msg;
+  if (S.hintStep === 0) {
+    msg = '<b>👷 Şehir Mühendisi:</b> Alan = En × Boy. ' + t + '\'ı tam bölen sayılar (çarpanlar) En için adaydır. 1\'den başlayıp sırayla dene!';
+  } else {
+    var miss = L().pairs.filter(function(p){ return !S.found.some(function(f){ return f.key === keyOf(p[0], p[1]); }); })[0];
+    S.score = Math.max(0, S.score - 10);
+    msg = '<b>👷 Şehir Mühendisi:</b> Haritada henüz olmayan bir parsel var. En = <b>' + miss[0] + '</b> dene! Boy için ' + t + ' ÷ ' + miss[0] + ' işlemini yap. <i>(−10 puan)</i>';
+  }
+  S.hintStep++; S.hints++;
+  var n = $('note');
+  n.className = 'note'; void n.offsetWidth; n.className = 'note show';
+  n.innerHTML = msg;
+  updateHud();
+}
+
+function gameOver(){
+  S.over = true; S.running = false;
+  updateHud(); updateLive();
+  showModal('<h3>⏰ Süre Doldu!</h3>' +
+    '<p>İnşaat ruhsatı alınamadı. Arsa ' + (S.lv + 1) + ' için <b>' + S.found.length + '/' + L().pairs.length + '</b> parsel bulabildin.</p>' +
+    '<p>İpucu: Hedef alanı tam bölen sayıları sırayla (1, 2, 3, …) deneyerek çarpan çiftlerini sistemli bulabilirsin.</p>' +
+    '<div class="row"><button class="btn btn-accent" data-act="retry">🔁 Bu Arsayı Tekrar Dene</button><button class="btn btn-outline" data-act="restart">🏠 Baştan Başla</button></div>', 'lose');
+}
+
+/* Bütçe krizi */
+function openBudget(){
+  var items = S.found.slice().sort(function(x, y){ return Math.min(x.a, x.b) - Math.min(y.a, y.b); });
+  var h = '<h3>💸 Belediye Bütçe Krizi!</h3>' +
+    '<p>Meclis bütçeyi kesti! Güvenlik duvarının maliyeti <b>çevre uzunluğuyla</b> orantılı.</p>' +
+    '<p><b>Güvenlik duvarı maliyetini minimum yapmak için hangi parseli seçmelisin?</b></p><div id="budOpts">';
+  items.forEach(function(f){
+    h += '<button class="opt" data-act="bud" data-key="' + f.key + '">' + miniSvg(f.a, f.b) + '<span>' + f.a + ' × ' + f.b + ' parseli</span></button>';
+  });
+  h += '</div><div class="qmsg" id="budMsg"></div>';
+  showModal(h, 'crisis');
+}
+function pickBudget(btn){
+  var key = btn.dataset.key;
+  var minF = S.found.reduce(function(m, f){ return f.P < m.P ? f : m; }, S.found[0]);
+  var chosen = S.found.filter(function(f){ return f.key === key; })[0];
+  var msg = $('budMsg');
+  if (key === minF.key) {
+    S.score += 150;
+    S.budgetDone = true;
+    btn.classList.add('right');
+    document.querySelectorAll('#budOpts .opt').forEach(function(b){ b.disabled = true; });
+    msg.style.color = '#14532d';
+    msg.innerHTML = '✅ Doğru! ' + minF.a + ' × ' + minF.b + ' parselinin çevresi <b>' + minF.P + ' br</b> ile en küçük. Alan sabitken kenarlar birbirine yaklaştıkça çevre azalır. (+150 puan)';
+    msg.insertAdjacentHTML('afterend', '<div class="row"><button class="btn btn-primary" data-act="budclose">Devam Et ➜</button></div>');
+    updateHud();
+  } else {
+    S.score = Math.max(0, S.score - 15);
+    btn.classList.add('wrong'); btn.disabled = true;
+    msg.style.color = '#7f1d1d';
+    msg.innerHTML = '❌ Bu parselin çevresi ' + chosen.P + ' br; daha ucuz bir seçenek var. Çevre = 2 × (En + Boy) — listedeki çevreleri karşılaştır! (−15 puan)';
+    updateHud();
+  }
+}
+
+/* Çıkış kartı */
+var exitIdx = 0;
+function openExit(){ exitIdx = 0; showExit(); }
+function showExit(){
+  var q = L().exit[exitIdx], letters = ['A','B','C','D'];
+  var h = '<h3>📝 Çıkış Kartı ' + (exitIdx + 1) + '/' + L().exit.length + '</h3><p><b>' + q.q + '</b></p><div id="exOpts">';
+  q.opts.forEach(function(o, i){
+    h += '<button class="opt" data-act="exopt" data-i="' + i + '"><span class="l">' + letters[i] + '</span><span>' + o + '</span></button>';
+  });
+  h += '</div><div class="qmsg" id="exMsg"></div>';
+  showModal(h, '');
+}
+function pickExit(btn){
+  var i = parseInt(btn.dataset.i, 10), q = L().exit[exitIdx], msg = $('exMsg');
+  if (i === q.ans) {
+    S.score += 50;
+    btn.classList.add('right');
+    document.querySelectorAll('#exOpts .opt').forEach(function(b){ b.disabled = true; });
+    msg.style.color = '#14532d';
+    msg.innerHTML = '✅ Doğru! ' + q.exp + ' (+50 puan)';
+    var last = exitIdx === L().exit.length - 1;
+    msg.insertAdjacentHTML('afterend', '<div class="row"><button class="btn btn-primary" data-act="exnext">' + (last ? 'Ruhsatı Al 🏛️' : 'Sonraki Soru ➜') + '</button></div>');
+    updateHud();
+  } else {
+    S.score = Math.max(0, S.score - 10);
+    btn.classList.add('wrong'); btn.disabled = true;
+    msg.style.color = '#7f1d1d';
+    msg.innerHTML = '❌ Tam olarak değil. Alan = En × Boy ve Çevre = 2 × (En + Boy) bağıntılarını düşün, tekrar dene! (−10 puan)';
+    updateHud();
+  }
+}
+
+function showWin(){
+  var stars = 1 + (S.left >= 60 ? 1 : 0) + (S.wrong <= 3 && S.hints <= 2 ? 1 : 0);
+  var last = S.lv === LEVELS.length - 1;
+  var starStr = '';
+  for (var i = 0; i < 3; i++) starStr += i < stars ? '⭐' : '☆';
+  showModal('<h3>🏛️ ' + (last ? 'Şehir Planı Onaylandı!' : 'Ruhsat Alındı!') + '</h3>' +
+    '<div class="stars">' + starStr + '</div>' +
+    '<div class="stat"><span>Arsa</span><b>' + (S.lv + 1) + '/' + LEVELS.length + ' (' + L().target + ' br²)</b></div>' +
+    '<div class="stat"><span>Bulunan parsel</span><b>' + S.found.length + '/' + L().pairs.length + '</b></div>' +
+    '<div class="stat"><span>Hatalı deneme</span><b>' + S.wrong + '</b></div>' +
+    '<div class="stat"><span>Kalan süre</span><b>' + Math.ceil(S.left) + ' sn</b></div>' +
+    '<div class="stat"><span>Şehir puanı</span><b>' + S.score + '</b></div>' +
+    '<p style="margin-top:10px">' + (last ? 'Tüm arsaları başarıyla planladın. Çarpanları ve çevre-alan ilişkisini ustalıkla kullandın! 🎉' : 'Harika iş! Şimdi sıradaki arsaya geçelim.') + '</p>' +
+    '<div class="row">' + (last ? '<button class="btn btn-accent" data-act="restart">🔁 Baştan Oyna</button>' : '<button class="btn btn-primary" data-act="next">Sonraki Arsa ➜</button>') + '</div>', 'win');
+}
+
+function fullRestart(){
+  S.score = 0; S.lvStartScore = 0;
+  startPlot(0, false);
+}
+
+/* ---------- Olaylar ---------- */
+document.addEventListener('click', function(e){
+  var el = e.target.closest('[data-act]');
+  if (!el || el.disabled) return;
+  var act = el.dataset.act;
+  switch (act) {
+    case 'step':
+      if (S.modalOpen) return;
+      setSide(el.dataset.side, S[el.dataset.side] + parseInt(el.dataset.d, 10));
+      break;
+    case 'test': testParcel(); break;
+    case 'hint': hint(); break;
+    case 'reset':
+      if (S.modalOpen && !S.over) return;
+      startPlot(S.lv, true);
+      break;
+    case 'finish':
+      if (!S.allFound || S.modalOpen) return;
+      if (!S.budgetDone) openBudget(); else openExit();
+      break;
+    case 'start': hideModal(); S.running = true; lastTick = performance.now(); break;
+    case 'bud': pickBudget(el); break;
+    case 'budclose': hideModal(); fb('ok', '💼 Bütçe krizi çözüldü! Şimdi <b>Turu Bitir &amp; Ruhsat Al</b> butonuna bas.'); break;
+    case 'exopt': pickExit(el); break;
+    case 'exnext':
+      if (exitIdx < L().exit.length - 1) { exitIdx++; showExit(); } else showWin();
+      break;
+    case 'next': startPlot(S.lv + 1, false); lastTick = performance.now(); break;
+    case 'retry': startPlot(S.lv, true); lastTick = performance.now(); break;
+    case 'restart': fullRestart(); lastTick = performance.now(); break;
+  }
+});
+
+$('enRange').addEventListener('input', function(){ setSide('en', this.value); });
+$('boyRange').addEventListener('input', function(){ setSide('boy', this.value); });
+$('enNum').addEventListener('input', function(){ if (this.value !== '') setSide('en', this.value); });
+$('boyNum').addEventListener('input', function(){ if (this.value !== '') setSide('boy', this.value); });
+$('enNum').addEventListener('change', function(){ this.value = S.en; });
+$('boyNum').addEventListener('change', function(){ this.value = S.boy; });
+$('enNum').addEventListener('blur', function(){ this.value = S.en; });
+$('boyNum').addEventListener('blur', function(){ this.value = S.boy; });
+document.addEventListener('keydown', function(e){
+  if (e.key === 'Enter' && !S.modalOpen && !(e.target && e.target.tagName === 'BUTTON')) { e.preventDefault(); testParcel(); }
+});
+
+/* ---------- Başlat ---------- */
+startPlot(0, false);
+S.running = false;
+updateLive();
+introModal();
+})();
+</script>
+</body>
+</html>
